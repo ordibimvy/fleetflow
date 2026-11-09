@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS silver;
 DROP TABLE IF EXISTS silver.transactions;
 CREATE TABLE silver.transactions AS
-SELECT DISTINCT ON (txn_id)
+SELECT
     txn_id,
     NULLIF(TRIM(fleet_id), '')       AS fleet_id,
     card_id,
@@ -15,4 +15,10 @@ WHERE NULLIF(TRIM(fleet_id), '') IS NOT NULL
   AND amount_usd::NUMERIC > 0
 ORDER BY txn_id;
 
+
+
+/*
+DISTINCT ON (txn_id)
+
 ALTER TABLE silver.transactions ADD PRIMARY KEY (txn_id);
+*/
