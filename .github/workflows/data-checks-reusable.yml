@@ -1,0 +1,48 @@
+name: Reusable data pipeline checks
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.12"
+      pipeline-module:
+        type: string
+        default: pipeline.run
+      tests-path:
+        type: string
+        default: tests
+
+jobs:
+  run-and-check:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fleetflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fleetflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run pipeline
+        run: python -m ${{ inputs.pipeline-module }}
+      - name: Data quality checks
+        run: pytest -v ${{ inputs.tests-path }}
+      - name: Write run summary
+        if: always()
+        run: |
+          echo "## Pipeline run" >> "$GITHUB_STEP_SUMMARY"
+          psql "$DATABASE_URL" -c "SELECT * FROM ops.run_metrics" --html >> "$GITHUB_STEP_SUMMARY" || true
